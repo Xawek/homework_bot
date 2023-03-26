@@ -9,14 +9,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 logger = logging.getLogger(__name__)
-logging.basicConfig(
-    level=logging.DEBUG,
-    filename='bot.log',
-    filemode='w',
-    format='%(asctime)s, %(levelname)s, %(message)s, %(name)s',
-    encoding='utf-8'
-)
-logger.addHandler(logging.StreamHandler())
+
 
 PRACTICUM_TOKEN = os.getenv('PRACTICUM_TOKEN')
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
@@ -122,4 +115,12 @@ def main():
 
 
 if __name__ == '__main__':
+    logging.basicConfig(
+        level=logging.DEBUG,
+        filename='bot.log',
+        filemode='w',
+        format='%(asctime)s, %(levelname)s, %(message)s, %(name)s',
+        encoding='utf-8'
+    )
+    logger.addHandler(logging.StreamHandler())
     main()
