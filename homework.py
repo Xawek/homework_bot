@@ -100,13 +100,13 @@ def check_response(response):
 def parse_status(homework):
     """Извлечение точной информации о статусе домашней работы."""
     logger.info('Извлечение информации')
-    homework_name = homework.get('homework_name')
     homework_status = homework.get('status')
     if 'homework_name' not in homework:
         raise KeyError('Ответ не содержит homework_name.')
     if homework_status not in HOMEWORK_VERDICTS:
         raise ValueError(f'Ответ не содержит - {homework_status}')
     verdict = HOMEWORK_VERDICTS[homework_status]
+    homework_name = homework.get('homework_name')
     return f'Изменился статус проверки работы "{homework_name}". {verdict}'
 
 
