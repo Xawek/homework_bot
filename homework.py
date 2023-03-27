@@ -3,6 +3,7 @@ import os
 import time
 from http import HTTPStatus
 
+import exceptions
 import requests
 import telegram
 from dotenv import load_dotenv
@@ -35,49 +36,70 @@ def check_tokens():
 
 def send_message(bot, message):
     """Отправка сообщения в Telegram чат."""
-    logger.debug('Отправка сообщения.')
+    logger.info('Отправка сообщения.')
     try:
         bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
-    except Exception:
-        logger.error('Проблема с отправкой сообщения.')
+    except Exception as error:
+        error_message = f'Проблема с отправкой сообщения.{error}'
+        logger.error(error_message)
     else:
         logger.debug('Сообщение отправлено.')
 
 
 def get_api_answer(timestamp):
     """Запрос к эндпоинту."""
-    logger.debug('Отправка запроса.')
     payload = {'from_date': timestamp}
+    request_items = {
+        'url': ENDPOINT,
+        'headers': HEADERS,
+        'params': payload,
+    }
+    logger.info('Отправка запроса.')
     try:
-        homework_status = requests.get(
-            ENDPOINT, headers=HEADERS, params=payload)
-    except Exception:
-        logger.error('Ошибка запроса к API.')
+        homework_status = requests.get(**request_items)
+    except Exception as error:
+        raise exceptions.ConnectionError(
+            f'Эндоинт не доступен.'
+            f'Параметры запроса:{request_items} ошибка:{error}'
+        )
     else:
         if homework_status.status_code != HTTPStatus.OK:
-            raise requests.HTTPError('Нет ответа на запрос к API.',)
+            code = homework_status.status_code
+            text = homework_status.text
+            error_info = f'Код: {code}, ответ: {text}'
+            if homework_status.status_code == HTTPStatus.BAD_REQUEST:
+                raise exceptions.ResponseProblemException(
+                    f'Некорректный запрос. {error_info}'
+                )
+            if homework_status.status_code == HTTPStatus.UNAUTHORIZED:
+                raise exceptions.ResponseProblemException(
+                    f'Не авторизованный запрос. {error_info}'
+                )
+            if homework_status.status_code == HTTPStatus.INTERNAL_SERVER_ERROR:
+                raise exceptions.ResponseProblemException(
+                    f'Внутренняя ошибка сервера. {error_info}'
+                )
+            else:
+                raise requests.HTTPError('Нет ответа на запрос к API.',)
         return homework_status.json()
 
 
 def check_response(response):
     """Проверка ответа API."""
-    logger.debug('Проверка ответа API.')
+    logger.info('Проверка ответа API.')
     if 'homeworks' not in response:
-        logger.error('В ответе API не содержится "homeworks".')
-        raise TypeError()
+        raise TypeError('В ответе API не содержится "homeworks".')
     if not isinstance(response, dict):
-        logger.error('В ответе API не содержится словарь.')
-        raise TypeError()
+        raise TypeError('В ответе API не содержится словарь.')
     homeworks = response.get('homeworks')
     if not isinstance(homeworks, list):
-        logger.error('В ответе API не содержится список.')
-        raise TypeError()
+        raise TypeError('В ответе API не содержится список.')
     return homeworks
 
 
 def parse_status(homework):
     """Извлечение точной информации о статусе домашней работы."""
-    logger.debug('Извлечение информации')
+    logger.info('Извлечение информации')
     homework_name = homework.get('homework_name')
     homework_status = homework.get('status')
     if 'homework_name' not in homework:
@@ -107,6 +129,7 @@ def main():
                     prev_message = message
         except Exception as error:
             message = f'Сбой в работе программы: {error}'
+            logger.error(message)
             if prev_message != message:
                 send_message(bot, message)
                 prev_message = message
